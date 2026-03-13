@@ -1,0 +1,1 @@
+This file is designed to test if the function "calculate_file_hash" works well.
