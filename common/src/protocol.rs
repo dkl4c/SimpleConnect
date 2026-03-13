@@ -78,6 +78,7 @@ pub async fn unpack_message(msg_type: MessageType, data: &[u8]) -> Result<()> {
         }
         MessageType::BlockData => {
             let block_data: BlockData = bincode::deserialize(data).expect("Deserialization failed");
+            write_block(&block_data).await?;
         }
     }
 
