@@ -40,17 +40,18 @@ pub struct BlockData {
 
 pub fn pack_message<T: Serialize>(msg_type: MessageType, payload: &T) -> Vec<u8> {
     // (Total Length 4Bytes) (Message Type 2Bytes) (Data Body)
+    // Total length means the whole length of this message pack, includes itself
     let mut body = bincode::serialize(payload).expect("Serialization failed");
-    let total_len = (body.len() + 2) as u32;
+    let total_len = (4 + 2 + body.len()) as u32;
 
-    let mut frame = Vec::with_capacity(4 + total_len as usize);
+    let mut frame = Vec::with_capacity(total_len as usize);
     frame.extend_from_slice(&total_len.to_be_bytes());
     frame.extend_from_slice(&(msg_type as u16).to_be_bytes());
     frame.append(&mut body);
     frame
 }
 
-pub fn unpack_header<T: Serialize>(data: &[u8]) -> Option<(MessageType, &[u8])> {
+pub fn unpack_header(data: &[u8]) -> Option<(MessageType, &[u8])> {
     if data.len() < 6 {
         return None;
     }
