@@ -93,16 +93,8 @@ pub async fn daemon(stream: TcpStream) -> Result<()> {
 
             match msg_type {
                 MessageType::HandShake => {}
-                MessageType::FileMetaData => {
-                    let file_meta_data: FileMetaData =
-                        bincode::deserialize(&payload).context("Deserialization failed")?;
-                    create_meta_file(&file_meta_data).await?;
-                }
-                MessageType::BlockData => {
-                    let block_data: BlockData =
-                        bincode::deserialize(&payload).context("Deserialization failed")?;
-                    write_block(&block_data).await?;
-                }
+                MessageType::FileMetaData => {}
+                MessageType::BlockData => {}
             }
         }
 
