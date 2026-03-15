@@ -1,27 +1,34 @@
+use std::{env, process::Stdio};
+
 use anyhow::Result;
-use common::net::MessageHandler;
-use tokio::{self, net::TcpStream, time};
+use common::main_loop::daemon;
+use tokio::{self};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let server_addr = "127.0.0.1:1234";
-    let mut stream = TcpStream::connect(server_addr).await?;
-    let (reader, writer) = stream.into_split();
-    print!("Connected to the server {}", server_addr);
 
-    let msg_handler = MessageHandler::new(reader);
+    let mut args: Vec<String> = env::args().collect();
 
-    tokio::spawn(async move {
-        tokio::time::sleep(time::Duration::from_secs(5)).await;
-        // let task = async {
-
-        // };
-
-        // if let Err(e) = task.await {
-        //     eprintln!("Runtime Error: {}", e)
-        // }
-        Ok::<(), anyhow::Error>(())
-    });
+    if let Some(arg) = args.get(1) {
+        match arg.as_str() {
+            "daemon" => {
+                let current_exe = env::current_exe()?;
+                let child = std::process::Command::new(current_exe)
+                    .arg("_daemon_internal")
+                    .arg(args.get(2).unwrap_or(&server_addr.to_string()))
+                    .stdin(Stdio::null())
+                    .stderr(Stdio::null())
+                    .stdout(Stdio::null())
+                    .spawn()?;
+                println!("守护进程已启动 pid: {}", child.id());
+            }
+            "_daemon_internal" => {
+                daemon(server_addr).await?;
+            }
+            _ => {}
+        }
+    }
 
     Ok(())
 }

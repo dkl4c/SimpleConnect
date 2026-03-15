@@ -11,9 +11,6 @@ use tokio::{
     io::{AsyncSeekExt, AsyncWriteExt},
 };
 
-static RECV_PATH: &str = "C:\\Users\\DKL4C\\Documents\\SimpleConnect\\recv_path";
-static RECV_TEMP: &str = "C:\\Users\\DKL4C\\Documents\\SimpleConnect\\temp";
-static SEND_PATH: &str = "C:\\Users\\DKL4C\\Documents\\SimpleConnect\\send_path";
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum MessageType {
@@ -69,56 +66,3 @@ pub fn unpack_header(data: &[u8]) -> Option<(MessageType, &[u8])> {
     Some((msg_type, &data[6..]))
 }
 
-pub async fn unpack_message(msg_type: MessageType, data: &[u8]) -> Result<()> {
-    Ok(())
-}
-
-pub async fn read_meta_data(path: &Path) -> Result<FileMetaData> {
-    let file_meta = path.metadata()?;
-    let filename = path.file_name().unwrap().to_str().unwrap().to_string();
-    Ok(FileMetaData {
-        name: filename,
-        hash: calculate_file_hash(path).await?,
-        size: file_meta.len(),
-        relative_path: "".to_string(),
-    })
-}
-
-pub async fn create_meta_file(file_meta_data: &FileMetaData) -> Result<File> {
-    let FileMetaData {
-        name,
-        hash,
-        size,
-        relative_path,
-    } = file_meta_data;
-
-    let hash_dict = PathBuf::from_str(RECV_TEMP)?.join(hash[..10].to_string());
-    let temp_path = hash_dict.join(hash);
-    let info_path = hash_dict.join(format!("{}.meta", hash));
-
-    let mut dict = tokio::fs::create_dir_all(hash_dict).await?;
-    let mut file = File::create(temp_path).await?;
-    let mut info = File::create(info_path).await?;
-
-    let info_bin = bincode::serialize(file_meta_data).expect("");
-    info.write_all(&info_bin).await.expect("");
-
-    Ok(file)
-}
-
-pub async fn write_block(file: &mut File, block_data: &BlockData) -> Result<()> {
-    let BlockData {
-        file_hash,
-        offset,
-        length,
-        data,
-    } = block_data;
-    // let hash_dict = PathBuf::from_str(RECV_TEMP)?.join(file_hash[..10].to_string());
-    // let temp_path = hash_dict.join(file_hash);
-    // let info_path = hash_dict.join(format!("{}.meta", file_hash));
-
-    // let mut file = OpenOptions::new().write(true).open(temp_path).await?;
-    file.seek(SeekFrom::Start(*offset)).await?;
-    file.write_all(data).await?;
-    Ok(())
-}

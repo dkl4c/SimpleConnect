@@ -19,6 +19,14 @@ pub async fn calculate_file_hash(path: &Path) -> io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+pub fn calculate_bytes_hash(data: &[u8]) -> io::Result<String> {
+    let mut hasher = Sha256::new();
+
+    hasher.update(data);
+
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 pub fn normalize_path(path: &str) -> String {
     path.replace('\\', "/")
 }

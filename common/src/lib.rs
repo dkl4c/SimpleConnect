@@ -1,3 +1,4 @@
+pub mod file_handler;
 pub mod main_loop;
 pub mod net;
 pub mod protocol;
@@ -8,7 +9,7 @@ mod utils_test {
     use std::{path::PathBuf, str::FromStr};
 
     use crate::{
-        protocol::{create_meta_file, read_meta_data},
+        file_handler::{create_meta_file, read_meta_data},
         utils::normalize_path,
     };
 
