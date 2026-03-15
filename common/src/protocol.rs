@@ -70,18 +70,6 @@ pub fn unpack_header(data: &[u8]) -> Option<(MessageType, &[u8])> {
 }
 
 pub async fn unpack_message(msg_type: MessageType, data: &[u8]) -> Result<()> {
-    match msg_type {
-        MessageType::HandShake => {}
-        MessageType::FileMetaData => {
-            let file_meta_data: FileMetaData =
-                bincode::deserialize(data).expect("Deserialization failed");
-            create_meta_file(&file_meta_data).await?;
-        }
-        MessageType::BlockData => {
-            let block_data: BlockData = bincode::deserialize(data).expect("Deserialization failed");
-            write_block(&block_data).await?;
-        }
-    }
 
     Ok(())
 }

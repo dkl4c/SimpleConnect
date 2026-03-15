@@ -2,33 +2,33 @@ use anyhow::{Ok, Result, bail};
 use std::collections::VecDeque;
 use std::path::Path;
 use tokio::fs::OpenOptions;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::TcpStream;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
 use crate::protocol::pack_message;
 use crate::protocol::{self};
 use crate::protocol::{MessageType, unpack_header};
 use crate::utils::calculate_file_hash;
 
-pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:8080";
-
-pub struct MessageHandler {
-    pub stream: BufReader<TcpStream>,
+pub struct MessageReader {
+    pub stream: BufReader<OwnedReadHalf>,
     pub buffer: Vec<u8>,
     pub pending_messages: VecDeque<Vec<u8>>,
 }
 
-impl MessageHandler {
-    pub fn new(stream: TcpStream) -> Self {
+impl MessageReader {
+    fn new(stream: OwnedReadHalf) -> Self {
         Self {
             stream: BufReader::new(stream),
-            buffer: Vec::with_capacity(1024 * 64),
+            buffer: Vec::with_capacity(1024 * 64), // 64KB
             pending_messages: VecDeque::new(),
         }
     }
 
+    /// 强制等待读取1~4KB数据，返回数据长度
     pub async fn fill_buffer(&mut self) -> Result<usize> {
-        let mut temp_buf = [0u8; 4096];
+        let mut temp_buf = [0u8; 4096]; //4KB
         let n = self.stream.read(&mut temp_buf).await?;
         if n > 0 {
             self.buffer.extend_from_slice(&temp_buf[..n]);
@@ -53,15 +53,14 @@ impl MessageHandler {
         Ok(())
     }
 
+    /// 阻塞读取下一个消息
     pub async fn read_next_message(&mut self) -> Result<Vec<u8>> {
         loop {
-            if let Some(message) = self.pending_messages.pop_front() {
-                return Ok(message);
-            }
-
             self.try_parse_message()?;
 
-            if self.pending_messages.is_empty() {
+            if let Some(message) = self.pending_messages.pop_front() {
+                return Ok(message);
+            } else {
                 if self.fill_buffer().await? == 0 {
                     bail!("Connection closed");
                 }
@@ -74,7 +73,8 @@ impl MessageHandler {
         Ok(self.pending_messages.pop_front())
     }
 
-    pub async fn read_and_unpack_message(&mut self) -> Result<(MessageType, Vec<u8>)> {
+    /// 阻塞都群下一个消息并解包
+    pub async fn read_and_unpack_next_message(&mut self) -> Result<(MessageType, Vec<u8>)> {
         let message = self.read_next_message().await?;
 
         if message.len() < 6 {
@@ -85,6 +85,20 @@ impl MessageHandler {
             Ok((msg_type, payload.to_vec()))
         } else {
             bail!("Failed to unpack message header")
+        }
+    }
+}
+
+pub struct MessageSender {
+    pub stream: OwnedWriteHalf,
+    pub msg_queue: VecDeque<Vec<u8>>,
+}
+
+impl MessageSender {
+    pub fn new(stream: OwnedWriteHalf) -> Self {
+        Self {
+            stream,
+            msg_queue: VecDeque::new(),
         }
     }
 
@@ -117,10 +131,24 @@ impl MessageHandler {
     }
 
     pub async fn send_message(&mut self, message: &[u8]) -> Result<()> {
-        let stream = self.stream.get_mut();
-        stream.write_all(message).await?;
-        stream.flush().await?;
+        self.stream.write_all(&message).await?;
+        self.stream.flush().await?;
 
         Ok(())
+    }
+}
+
+pub struct SingleConnection {
+    pub sender: MessageSender,
+    pub reader: MessageReader,
+}
+
+impl SingleConnection {
+    pub fn from_stream(stream: TcpStream) -> Self {
+        let (reader, sender) = stream.into_split();
+        Self {
+            sender: MessageSender::new(sender),
+            reader: MessageReader::new(reader),
+        }
     }
 }
