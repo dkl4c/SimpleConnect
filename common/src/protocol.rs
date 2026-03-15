@@ -70,7 +70,6 @@ pub fn unpack_header(data: &[u8]) -> Option<(MessageType, &[u8])> {
 }
 
 pub async fn unpack_message(msg_type: MessageType, data: &[u8]) -> Result<()> {
-
     Ok(())
 }
 
@@ -85,7 +84,7 @@ pub async fn read_meta_data(path: &Path) -> Result<FileMetaData> {
     })
 }
 
-pub async fn create_meta_file(file_meta_data: &FileMetaData) -> Result<()> {
+pub async fn create_meta_file(file_meta_data: &FileMetaData) -> Result<File> {
     let FileMetaData {
         name,
         hash,
@@ -104,21 +103,21 @@ pub async fn create_meta_file(file_meta_data: &FileMetaData) -> Result<()> {
     let info_bin = bincode::serialize(file_meta_data).expect("");
     info.write_all(&info_bin).await.expect("");
 
-    Ok(())
+    Ok(file)
 }
 
-pub async fn write_block(block_data: &BlockData) -> Result<()> {
+pub async fn write_block(file: &mut File, block_data: &BlockData) -> Result<()> {
     let BlockData {
         file_hash,
         offset,
         length,
         data,
     } = block_data;
-    let hash_dict = PathBuf::from_str(RECV_TEMP)?.join(file_hash[..10].to_string());
-    let temp_path = hash_dict.join(file_hash);
-    let info_path = hash_dict.join(format!("{}.meta", file_hash));
+    // let hash_dict = PathBuf::from_str(RECV_TEMP)?.join(file_hash[..10].to_string());
+    // let temp_path = hash_dict.join(file_hash);
+    // let info_path = hash_dict.join(format!("{}.meta", file_hash));
 
-    let mut file = OpenOptions::new().write(true).open(temp_path).await?;
+    // let mut file = OpenOptions::new().write(true).open(temp_path).await?;
     file.seek(SeekFrom::Start(*offset)).await?;
     file.write_all(data).await?;
     Ok(())
