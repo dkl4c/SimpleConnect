@@ -1,23 +1,16 @@
-use crate::utils::calculate_file_hash;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{
-    io::SeekFrom,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
-use tokio::{
-    fs::{File, OpenOptions},
-    io::{AsyncSeekExt, AsyncWriteExt},
-};
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum MessageType {
-    HandShake = 0x00,
+    Heartbeat = 0x00,
     FileMetaData = 0x01,
     BlockData = 0x02,
+    CloseConnection = 0x03,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Heartbeat;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileMetaData {
@@ -34,6 +27,20 @@ pub struct BlockData {
     pub length: u32,
     pub data: Vec<u8>,
 }
+
+pub trait NetworkMessage: for<'de> Deserialize<'de> + Serialize {
+    // 封装反序列化逻辑
+    fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        Ok(bincode::deserialize(bytes)?)
+    }
+
+    // 顺便封装序列化逻辑
+    fn to_bytes(&self) -> Result<Vec<u8>> {
+        Ok(bincode::serialize(self)?)
+    }
+}
+
+impl<T> NetworkMessage for T where T: for<'de> Deserialize<'de> + Serialize {}
 
 pub fn pack_message<T: Serialize>(msg_type: MessageType, payload: &T) -> Vec<u8> {
     // (Total Length 4Bytes) (Message Type 2Bytes) (Data Body)
@@ -57,12 +64,12 @@ pub fn unpack_header(data: &[u8]) -> Option<(MessageType, &[u8])> {
     let type_code = u16::from_be_bytes(type_bytes);
 
     let msg_type = match type_code {
-        0x00 => MessageType::HandShake,
+        0x00 => MessageType::Heartbeat,
         0x01 => MessageType::FileMetaData,
         0x02 => MessageType::BlockData,
+        0x03 => MessageType::CloseConnection,
         _ => return None,
     };
 
     Some((msg_type, &data[6..]))
 }
-

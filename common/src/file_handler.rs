@@ -1,19 +1,17 @@
+use crate::{
+    protocol::{BlockData, FileMetaData},
+    utils::calculate_file_hash,
+};
+use anyhow::{Result, bail};
 use std::{
     collections::{HashMap, VecDeque},
     path::{Path, PathBuf},
     str::FromStr,
 };
-
-use anyhow::{Result, bail};
 use tokio::{
     fs::File,
     io::{AsyncSeekExt, AsyncWriteExt, SeekFrom},
     sync::mpsc,
-};
-
-use crate::{
-    protocol::{BlockData, FileMetaData},
-    utils::calculate_file_hash,
 };
 
 static RECV_PATH: &str = "C:\\Users\\DKL4C\\Documents\\SimpleConnect\\recv_path";
