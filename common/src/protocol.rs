@@ -6,11 +6,20 @@ pub enum MessageType {
     Heartbeat = 0x00,
     FileMetaData = 0x01,
     BlockData = 0x02,
-    CloseConnection = 0x03,
+    DirectoryData = 0x04,
+    CloseConnection = 0xff,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DirectoryData {
+    pub path: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Heartbeat;
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CloseConnection;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct FileMetaData {
@@ -26,6 +35,7 @@ pub struct BlockData {
     pub offset: u64,
     pub length: u32,
     pub data: Vec<u8>,
+    pub self_hash: String,
 }
 
 pub trait NetworkMessage: for<'de> Deserialize<'de> + Serialize {
@@ -67,7 +77,8 @@ pub fn unpack_header(data: &[u8]) -> Option<(MessageType, &[u8])> {
         0x00 => MessageType::Heartbeat,
         0x01 => MessageType::FileMetaData,
         0x02 => MessageType::BlockData,
-        0x03 => MessageType::CloseConnection,
+        0x03 => MessageType::DirectoryData,
+        0xff => MessageType::CloseConnection,
         _ => return None,
     };
 

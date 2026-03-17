@@ -1,18 +1,18 @@
-use anyhow::Result;
-use fs2::FileExt;
-use std::{io::Write, process, time::Duration};
-use tokio::net::TcpStream;
-
 use crate::file_handler::{FileData, FileHandler};
 use crate::protocol::{BlockData, FileMetaData, NetworkMessage};
 use crate::{
     net::single_connect::SingleConnection,
     protocol::{Heartbeat, MessageType, pack_message},
 };
+use anyhow::Result;
+use fs2::FileExt;
+use std::time::Duration;
+use std::{io::Write, process};
+use tokio::net::TcpStream;
 
 pub static DAEMON_LOCK: &str = "/tmp/SimpleConnect.deamon.lock";
 
-pub async fn daemon(server_addr: &str, args: &[String]) -> Result<()> {
+pub async fn daemon(server_addr: &str) -> Result<()> {
     let mut daemon_lock = std::fs::File::create(DAEMON_LOCK).unwrap();
     let pid = process::id();
     if daemon_lock.try_lock_exclusive().is_err() {
@@ -33,10 +33,11 @@ pub async fn daemon(server_addr: &str, args: &[String]) -> Result<()> {
 
     // task: File Handler
     tokio::spawn(async move {
-        if let Err(e) = FileHandler::task(file_receiver).await {
+        if let Err(e) = FileHandler::file_task(file_receiver).await {
             eprintln!("FileHandler task error: {}", e);
         }
     });
+
     // task: Message Send Center
     tokio::spawn(async move {
         while let Some(ref msg) = msg_send_center.recv().await {
@@ -59,19 +60,16 @@ pub async fn daemon(server_addr: &str, args: &[String]) -> Result<()> {
 
     // task: Send File
     let file_sender = msg_send_center_sender.clone();
+    let (cmd_sender, command_recv) = tokio::sync::mpsc::channel::<String>(100);
+
+    cmd_sender
+        .send("/home/anju/rust-project/SimpleConnect/CalculateHashTest.txt".to_string())
+        .await
+        .expect("Can't Find File");
+
     tokio::spawn(async move {
-        loop {
-            file_sender
-                .send(pack_message(
-                    MessageType::FileMetaData,
-                    &FileMetaData {
-                        name: todo!(),
-                        hash: todo!(),
-                        size: todo!(),
-                        relative_path: todo!(),
-                    },
-                ))
-                .await?;
+        if let Err(e) = FileHandler::send_task(file_sender, command_recv).await {
+            eprint!("Error: {}", e);
         }
         Ok::<(), anyhow::Error>(())
     });
@@ -97,6 +95,7 @@ pub async fn daemon(server_addr: &str, args: &[String]) -> Result<()> {
                 MessageType::CloseConnection => {
                     break;
                 }
+                MessageType::DirectoryData => todo!(),
             }
         }
         Ok::<(), anyhow::Error>(())

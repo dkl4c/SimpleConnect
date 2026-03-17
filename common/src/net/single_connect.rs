@@ -2,7 +2,7 @@ use anyhow::{Ok, Result, bail};
 use std::collections::VecDeque;
 use std::path::Path;
 use tokio::fs::OpenOptions;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
@@ -73,7 +73,7 @@ impl MessageReader {
         Ok(self.pending_messages.pop_front())
     }
 
-    /// 阻塞都群下一个消息并解包
+    /// 阻塞读取下一个消息并解包
     pub async fn read_and_unpack_next_message(&mut self) -> Result<(MessageType, Vec<u8>)> {
         let message = self.read_next_message().await?;
 

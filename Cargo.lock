@@ -63,6 +63,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
+ "bytes",
  "fs2",
  "serde",
  "sha2",
@@ -282,6 +283,7 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "common",
  "tokio",
 ]
 

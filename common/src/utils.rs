@@ -1,10 +1,7 @@
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::{self, AsyncReadExt};
-
 
 pub async fn calculate_file_hash(path: &Path) -> io::Result<String> {
     let mut file = File::open(path).await?;

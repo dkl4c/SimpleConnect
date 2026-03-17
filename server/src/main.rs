@@ -1,4 +1,5 @@
 use anyhow::{Ok, Result};
+use common::{net::single_connect::SingleConnection, protocol::MessageType};
 use tokio::{io::AsyncReadExt, net::TcpListener};
 
 #[tokio::main]
@@ -8,16 +9,21 @@ async fn main() -> Result<()> {
     println!("Server running on {}", server_addr);
 
     loop {
-        let (socket, addr) = server.accept().await?;
+        let (stream, addr) = server.accept().await?;
         println!("New connection from: {}", addr);
 
+        let mut connection = SingleConnection::from_stream(stream);
+
         tokio::spawn(async move {
-            let mut stream = socket;
             loop {
-                let mut buffer = [0u8; 4096];
-                match stream.read(&mut buffer).await {
-                    anyhow::Result::Ok(0) => {
+                match connection.reader.read_and_unpack_next_message().await {
+                    anyhow::Result::Ok((MessageType::CloseConnection, _))
+                    | anyhow::Result::Err(_) => {
                         println!("断开连接：{}", addr);
+                        return;
+                    }
+                    anyhow::Result::Ok((a, _)) => {
+                        println!("受到数据包类型：{:?}", a);
                         return;
                     }
                     _ => (),
