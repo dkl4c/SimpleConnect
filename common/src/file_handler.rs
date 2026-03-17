@@ -5,7 +5,6 @@ use crate::{
 use anyhow::{Result, bail};
 use std::{
     collections::{HashMap, VecDeque},
-    fmt::format,
     path::{Path, PathBuf},
     str::FromStr,
     sync::{Arc, atomic::AtomicUsize},
@@ -31,19 +30,26 @@ struct FailedBlock {
     offset: u64,
     length: u32,
 }
+
 struct FileSummary {
     total_blocks: usize,
     completed_blocks: usize,
     failed_blocks: Vec<FailedBlock>,
 }
-pub struct FileWorker {
+
+pub struct FileRecvHandler {
     pub file_hash: String,
     pub worker_tx: mpsc::Sender<FileData>,
     pub task: tokio::task::JoinHandle<FileSummary>,
-
-    block_cnt: Arc<AtomicUsize>,
 }
-impl FileWorker {
+
+pub struct FileSendHandler {
+    pub file_meta_data: FileMetaData,
+    pub blocks_data: Vec<BlockData>,
+    pub task: tokio::task::JoinHandle<()>,
+}
+
+impl FileRecvHandler {
     pub async fn send(&self, file_data: FileData) -> Result<()> {
         self.worker_tx.send(file_data).await?;
         Ok(())
@@ -56,12 +62,10 @@ impl FileWorker {
     pub fn spawn(file_hash: &str) -> Self {
         let (worker_tx, worker_rx) = mpsc::channel(100);
 
-        let (info_tx, info_rx) = mpsc::channel(100);
-
         let task_hash = file_hash.to_string();
 
         let task = tokio::spawn(async move {
-            match run_file_worker(worker_rx, info_tx).await {
+            match run_file_worker(worker_rx).await {
                 Err(e) => {
                     eprintln!("File worker [Hash: {}] error: {}", task_hash, e);
                     FileSummary {
@@ -78,7 +82,6 @@ impl FileWorker {
             file_hash: file_hash.to_string(),
             worker_tx,
             task,
-            block_cnt: Arc::new(AtomicUsize::new(0)),
         }
     }
 }
@@ -86,8 +89,9 @@ impl FileWorker {
 pub struct FileHandler {
     pub rx: mpsc::Receiver<FileData>,
     pub tx: mpsc::Sender<FileData>,
-    pub file_workers: HashMap<String, FileWorker>,
+    pub file_workers: HashMap<String, FileRecvHandler>,
 }
+
 impl FileHandler {
     pub fn new() -> Self {
         let (tx, rx) = mpsc::channel(100);
@@ -101,6 +105,7 @@ impl FileHandler {
         self.tx.clone()
     }
 }
+
 /// 处理所有文件、目录建立相关任务，在网络消息已被解析后
 impl FileHandler {
     /// 任务开启入口
@@ -144,7 +149,7 @@ impl FileHandler {
 
         // 若不存在该文件的处理任务，则创建
         if !self.file_workers.contains_key(&file_hash) {
-            let file_worker = FileWorker::spawn(&file_hash);
+            let file_worker = FileRecvHandler::spawn(&file_hash);
             self.file_workers.insert(file_hash.clone(), file_worker);
         }
 

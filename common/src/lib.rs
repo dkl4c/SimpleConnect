@@ -3,6 +3,8 @@ pub mod main_loop;
 pub mod net;
 pub mod protocol;
 pub mod utils;
+pub mod node;
+pub mod router;
 
 #[cfg(test)]
 mod utils_test {

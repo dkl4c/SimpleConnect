@@ -9,7 +9,7 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use crate::protocol::pack_message;
 use crate::protocol::{self};
 use crate::protocol::{MessageType, unpack_header};
-use crate::utils::calculate_file_hash;
+use crate::utils::{calculate_bytes_hash, calculate_file_hash};
 
 pub struct MessageReader {
     pub stream: BufReader<OwnedReadHalf>,
@@ -114,11 +114,14 @@ impl MessageSender {
                 break;
             }
 
+            let self_hash = calculate_bytes_hash(&buffer)?;
+
             let block = protocol::BlockData {
                 file_hash: file_hash.clone(),
                 offset,
                 length: n as u32,
                 data: buffer[..n].to_vec(),
+                self_hash,
             };
 
             offset += n as u64;
