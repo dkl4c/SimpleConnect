@@ -3,8 +3,6 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::router::CopyableMessage;
-
 // --- 1. 定义消息协议 Trait ---
 
 pub trait RouterMessage: Send + 'static {

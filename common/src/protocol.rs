@@ -21,7 +21,7 @@ pub struct Heartbeat;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CloseConnection;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FileMetaData {
     pub name: String,
     pub hash: String,
