@@ -5,13 +5,14 @@ pub mod protocol;
 pub mod utils;
 pub mod node;
 pub mod router;
+pub mod routerT;
 
 #[cfg(test)]
 mod utils_test {
     use std::{path::PathBuf, str::FromStr};
 
     use crate::{
-        file_handler::{create_meta_file, read_meta_data},
+        file_handler_back::{create_meta_file, read_meta_data},
         utils::normalize_path,
     };
 

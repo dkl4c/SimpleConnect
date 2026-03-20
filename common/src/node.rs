@@ -12,7 +12,7 @@ pub mod Node {
     pub mod InterfaceHandler {}
 }
 fn main() {
-    crate::router::run();
+    // crate::router::run();
     Node::MessageCenter::run();
     Node::FileHandler::FileHandleTask::run();
     Node::ConnectionHandler::Sender::run();
